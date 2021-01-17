@@ -1,0 +1,32 @@
+- name: Install packages for apt
+  package:
+    name: apt-transport-https
+    state: present
+
+- name: Add Influx GPG key
+  apt_key:
+    url: https://repos.influxdata.com/influxdb.key
+    state: present
+
+- name: Add Influx repository
+  apt_repository:
+    repo: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+    state: present
+    update_cache: yes
+
+- name: Install Telegraf package
+  package:
+    name: telegraf
+    state: present
+  notify: Enable Telegraf
+
+- name: Create configuration directory
+  file:
+    path: /etc/telegraf
+    state: directory
+
+- name: Template configuration
+  template:
+    src: "{{ telegraf.config }}"
+    dest: /etc/telegraf/telegraf.conf
+  notify: Restart Telegraf
