@@ -20,6 +20,12 @@
     state: present
   notify: Enable Telegraf
 
+- name: Give permissions to telegraf user
+  user:
+    name: telegraf
+    groups: adm
+    append: yes
+
 - name: Create configuration directory
   file:
     path: /etc/telegraf
