@@ -4,5 +4,5 @@
 
 ```yaml
 telegraf:
-  config: telegraf.conf.j2
+  config: telegraf.conf.j2 # or telegraf/
 ```

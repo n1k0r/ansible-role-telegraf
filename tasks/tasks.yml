@@ -31,8 +31,69 @@
     path: /etc/telegraf
     state: directory
 
-- name: Template configuration
-  template:
-    src: "{{ telegraf.config }}"
-    dest: /etc/telegraf/telegraf.conf
-  notify: Restart Telegraf
+- name: Check config type
+  stat:
+    path: "{{ telegraf.config }}"
+  delegate_to: localhost
+  register: telegraf_config
+  become: no
+
+- name: Template configuration file
+  when: not telegraf_config.stat.isdir
+  block:
+    - name: Template configuration
+      template:
+        src: "{{ telegraf.config }}"
+        dest: /etc/telegraf/telegraf.conf
+      notify: Restart Telegraf
+
+    - name: Get list of configuration files
+      find:
+        paths: "/etc/telegraf/telegraf.d"
+        file_type: any
+      register: remote_conf
+
+    - name: Remove configuration directory
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ remote_conf.files | map(attribute='path') }}"
+      notify: Restart Telegraf
+
+- name: Template configuration directory
+  when: telegraf_config.stat.isdir
+  block:
+    - name: Create configuration directory
+      file:
+        path: /etc/telegraf/telegraf.d
+        state: directory
+
+    - name: Template configurations
+      template:
+        src: "{{ item }}"
+        dest: /etc/telegraf/telegraf.d/{{ item | basename | splitext | first }}
+      loop: "{{ query('fileglob', '{{ telegraf.config }}/*.conf.j2') }}"
+      notify: Restart Telegraf
+
+    - name: Clear configurations
+      block:
+        - name: Get list of configuration files
+          find:
+            paths: "/etc/telegraf/telegraf.d"
+            file_type: any
+          register: remote_conf
+
+        - name: Remove unnecessary configuration files
+          file:
+            path: /etc/telegraf/telegraf.d/{{ item }}
+            state: absent
+          loop: "{{ remote_conf.files | map(attribute='path') | map('basename') | reject('in',
+            query('fileglob', '{{ telegraf.config }}/*.conf.j2') | map('basename') | map('splitext') | map('first')
+            ) }}"
+          notify: Restart Telegraf
+
+    - name: Remove configuration file
+      copy:
+        content: ""
+        dest: /etc/telegraf/telegraf.conf
+      notify: Restart Telegraf
