@@ -3,16 +3,17 @@
     name: apt-transport-https
     state: present
 
-- name: Add Influx GPG key
-  apt_key:
-    url: https://repos.influxdata.com/influxdata-archive_compat.key
-    state: present
+- name: Add InfluxData repository
+  deb822_repository:
+    name: influxdata
+    uris: https://repos.influxdata.com/{{ ansible_distribution | lower }}
+    suites: "{{ ansible_distribution_release }}"
+    components: stable
+    signed_by: https://repos.influxdata.com/influxdata-archive_compat.key
+  notify: Update apt cache
 
-- name: Add Influx repository
-  apt_repository:
-    repo: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
-    state: present
-    update_cache: yes
+- name: Fetch InfluxData repository
+  meta: flush_handlers
 
 - name: Install Telegraf package
   package:
